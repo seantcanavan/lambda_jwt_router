@@ -2,6 +2,7 @@ package lmw
 
 import (
 	"context"
+	"encoding/json"
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/golang-jwt/jwt"
 	"github.com/joho/godotenv"
@@ -195,7 +196,7 @@ func TestDecodeAndInjectStandardClaims(t *testing.T) {
 			RequestContext: util.GenerateRandomAPIGatewayContext(),
 		}
 
-		jwtMiddlewareHandler := DecodeStandardMW(lres.GenerateSuccessHandlerAndMapStandardContext())
+		jwtMiddlewareHandler := DecodeStandardMW(generateSuccessHandlerAndMapStandardContext(t))
 		res, err := jwtMiddlewareHandler(ctx, req)
 		require.Nil(t, err)
 		require.Equal(t, res.StatusCode, http.StatusOK)
@@ -255,6 +256,33 @@ func GenerateEmptySuccessHandler() lcom.Handler {
 		error) {
 		return events.APIGatewayProxyResponse{
 			StatusCode: http.StatusOK,
+		}, nil
+	}
+}
+
+// generateSuccessHandlerAndMapStandardContext returns a middleware handler
+// that takes the values inserted into the context object by DecodeStandardMW
+// and returns them as an object from the request so that unit tests can analyze the values
+// and make sure they have done the full trip from JWT -> CTX -> unit test
+func generateSuccessHandlerAndMapStandardContext(t *testing.T) lcom.Handler {
+	return func(ctx context.Context, req events.APIGatewayProxyRequest) (
+		events.APIGatewayProxyResponse,
+		error) {
+
+		jsonBytes, err := json.Marshal(jwt.StandardClaims{
+			Audience:  ctx.Value(lcom.JWTClaimAudienceKey).(string),
+			ExpiresAt: ctx.Value(lcom.JWTClaimExpiresAtKey).(int64),
+			Id:        ctx.Value(lcom.JWTClaimIDKey).(string),
+			IssuedAt:  ctx.Value(lcom.JWTClaimIssuedAtKey).(int64),
+			Issuer:    ctx.Value(lcom.JWTClaimIssuerKey).(string),
+			NotBefore: ctx.Value(lcom.JWTClaimNotBeforeKey).(int64),
+			Subject:   ctx.Value(lcom.JWTClaimSubjectKey).(string),
+		})
+		require.NoError(t, err)
+
+		return events.APIGatewayProxyResponse{
+			StatusCode: http.StatusOK,
+			Body:       string(jsonBytes),
 		}, nil
 	}
 }

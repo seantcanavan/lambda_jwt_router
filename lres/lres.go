@@ -1,13 +1,11 @@
 package lres
 
 import (
-	"context"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/aws/aws-lambda-go/events"
-	"github.com/golang-jwt/jwt"
 	"github.com/seantcanavan/lambda_jwt_router/lcom"
 	"net/http"
 	"os"
@@ -181,24 +179,4 @@ func UnmarshalRes(res events.APIGatewayProxyResponse, target interface{}) error 
 	}
 
 	return json.Unmarshal([]byte(res.Body), target)
-}
-
-// GenerateSuccessHandlerAndMapStandardContext returns a middleware handler
-// that takes the values inserted into the context object by DecodeStandardMW
-// and returns them as an object from the request so that unit tests can analyze the values
-// and make sure they have done the full trip from JWT -> CTX -> unit test
-func GenerateSuccessHandlerAndMapStandardContext() lcom.Handler {
-	return func(ctx context.Context, req events.APIGatewayProxyRequest) (
-		events.APIGatewayProxyResponse,
-		error) {
-		return CustomRes(http.StatusOK, nil, jwt.StandardClaims{
-			Audience:  ctx.Value(lcom.JWTClaimAudienceKey).(string),
-			ExpiresAt: ctx.Value(lcom.JWTClaimExpiresAtKey).(int64),
-			Id:        ctx.Value(lcom.JWTClaimIDKey).(string),
-			IssuedAt:  ctx.Value(lcom.JWTClaimIssuedAtKey).(int64),
-			Issuer:    ctx.Value(lcom.JWTClaimIssuerKey).(string),
-			NotBefore: ctx.Value(lcom.JWTClaimNotBeforeKey).(int64),
-			Subject:   ctx.Value(lcom.JWTClaimSubjectKey).(string),
-		})
-	}
 }
