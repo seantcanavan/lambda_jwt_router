@@ -2,7 +2,6 @@ package lmw
 
 import (
 	"context"
-	"encoding/json"
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/golang-jwt/jwt"
 	"github.com/rs/zerolog/log"
@@ -18,43 +17,44 @@ func LogRequestMW(next lcom.Handler) lcom.Handler {
 		res events.APIGatewayProxyResponse,
 		err error,
 	) {
-		format := "[%s] [%s %s] [%d]%s"
-		level := "INF"
-		var code int
-		var extra string
-
 		res, err = next(ctx, req)
 		if err != nil {
-			level = "ERR"
-			code = http.StatusInternalServerError
-			extra = " " + err.Error()
-		} else {
-			code = res.StatusCode
-			if code >= 400 {
-				level = "ERR"
-			}
+			res.StatusCode = http.StatusInternalServerError
 		}
 
-		if code > 399 {
-			resJSON, _ := json.Marshal(res)
-			log.Error().
-				Interface(lcom.LambdaContextIDKey, ctx.Value(lcom.LambdaContextIDKey)).
-				Interface(lcom.LambdaContextMethodKey, ctx.Value(lcom.LambdaContextMethodKey)).
-				Interface(lcom.LambdaContextMultiParamsKey, ctx.Value(lcom.LambdaContextMultiParamsKey)).
-				Interface(lcom.LambdaContextPathKey, ctx.Value(lcom.LambdaContextPathKey)).
-				Interface(lcom.LambdaContextPathParamsKey, ctx.Value(lcom.LambdaContextPathParamsKey)).
-				Interface(lcom.LambdaContextQueryParamsKey, ctx.Value(lcom.LambdaContextQueryParamsKey)).
-				Interface(lcom.LambdaContextRequestIDKey, ctx.Value(lcom.LambdaContextRequestIDKey)).
-				Interface(lcom.LambdaContextUserIDKey, ctx.Value(lcom.LambdaContextUserIDKey)).
-				Interface(lcom.LambdaContextUserTypeKey, ctx.Value(lcom.LambdaContextUserTypeKey)).
-				RawJSON("res", resJSON).
-				Msg("error encountered")
+		ctxVals := []string{
+			lcom.LambdaContextIDKey,
+			lcom.LambdaContextMethodKey,
+			lcom.LambdaContextMultiParamsKey,
+			lcom.LambdaContextPathKey,
+			lcom.LambdaContextPathParamsKey,
+			lcom.LambdaContextQueryParamsKey,
+			lcom.LambdaContextRequestIDKey,
+			lcom.LambdaContextUserIDKey,
+			lcom.LambdaContextUserTypeKey,
 		}
 
-		log.Printf(format, level, req.HTTPMethod, req.Path, code, extra)
+		logContextValues(ctx, res.StatusCode, ctxVals)
 
 		return res, err
 	}
+}
+
+func logContextValues(ctx context.Context, statusCode int, ctxVals []string) {
+	event := log.Info()
+	if statusCode > 399 {
+		event = log.Error()
+	}
+
+	for _, currentKey := range ctxVals {
+		val := ctx.Value(currentKey)
+		if val != nil {
+			event.Interface(currentKey, val)
+		}
+	}
+
+	event.Int("statusCode", statusCode)
+	event.Msg("request finished")
 }
 
 // InjectLambdaContextMW with do exactly that - inject all appropriate lambda values into the local
@@ -64,25 +64,45 @@ func InjectLambdaContextMW(next lcom.Handler) lcom.Handler {
 		res events.APIGatewayProxyResponse,
 		err error,
 	) {
-
 		lambdaParams := &lcom.LambdaParams{}
-		err = lreq.UnmarshalReq(req, true, lambdaParams)
-		if err != nil {
-			return lres.ErrorRes(err)
+		// we ignore the error in case the requests is empty or malformed - it's not up to us to crash the stack
+		_ = lreq.UnmarshalReq(req, true, lambdaParams)
+
+		vals := map[string]any{
+			lcom.LambdaContextIDKey:          lambdaParams.GetID(),
+			lcom.LambdaContextMethodKey:      req.HTTPMethod,
+			lcom.LambdaContextMultiParamsKey: req.MultiValueQueryStringParameters,
+			lcom.LambdaContextPathKey:        req.Path,
+			lcom.LambdaContextPathParamsKey:  req.PathParameters,
+			lcom.LambdaContextQueryParamsKey: req.QueryStringParameters,
+			lcom.LambdaContextRequestIDKey:   req.RequestContext.RequestID,
+			lcom.LambdaContextUserIDKey:      lambdaParams.GetUserID(),
+			lcom.LambdaContextUserTypeKey:    lambdaParams.GetUserType(),
 		}
 
-		ctx = context.WithValue(ctx, lcom.LambdaContextIDKey, lambdaParams.GetID())
-		ctx = context.WithValue(ctx, lcom.LambdaContextMethodKey, req.HTTPMethod)
-		ctx = context.WithValue(ctx, lcom.LambdaContextMultiParamsKey, req.MultiValueQueryStringParameters)
-		ctx = context.WithValue(ctx, lcom.LambdaContextPathKey, req.Path)
-		ctx = context.WithValue(ctx, lcom.LambdaContextPathParamsKey, req.PathParameters)
-		ctx = context.WithValue(ctx, lcom.LambdaContextQueryParamsKey, req.QueryStringParameters)
-		ctx = context.WithValue(ctx, lcom.LambdaContextRequestIDKey, req.RequestContext.RequestID)
-		ctx = context.WithValue(ctx, lcom.LambdaContextUserIDKey, lambdaParams.GetUserID())
-		ctx = context.WithValue(ctx, lcom.LambdaContextUserTypeKey, lambdaParams.GetUserType())
+		ctx = addToContext(ctx, vals)
 
 		return next(ctx, req)
 	}
+}
+
+func addToContext(ctx context.Context, vals map[string]any) context.Context {
+	for key, val := range vals {
+		if val == nil {
+			continue
+		}
+
+		strVal, ok := val.(string)
+		if ok {
+			if strVal != "" {
+				ctx = context.WithValue(ctx, key, val)
+			}
+		} else {
+			ctx = context.WithValue(ctx, key, val)
+		}
+	}
+
+	return ctx
 }
 
 // AllowOptionsMW is a helper middleware function that will immediately return a successful request if the method is OPTIONS.

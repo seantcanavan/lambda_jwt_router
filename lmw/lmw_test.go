@@ -8,6 +8,7 @@ import (
 	"github.com/golang-jwt/jwt"
 	"github.com/joho/godotenv"
 	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 	"github.com/seantcanavan/lambda_jwt_router/internal/util"
 	"github.com/seantcanavan/lambda_jwt_router/lcom"
 	"github.com/seantcanavan/lambda_jwt_router/lmw/ljwt"
@@ -28,7 +29,7 @@ func TestMain(m *testing.M) {
 func setup() {
 	err := godotenv.Load("../.env")
 	if err != nil {
-		log.Fatalf("Unable to load .env file: %s", err)
+		log.Fatal().Msg(fmt.Sprintf("Unable to load .env file: %s", err))
 	}
 }
 
@@ -315,74 +316,88 @@ func TestLogRequestMW(t *testing.T) {
 
 	testCases := []struct {
 		name           string
-		request        events.APIGatewayProxyRequest
-		mockResponse   events.APIGatewayProxyResponse
-		mockError      error
-		expectedLog    string
+		expectedErr    error
 		expectedStatus int
+		expectedString string
+		mockResponse   events.APIGatewayProxyResponse
+		request        events.APIGatewayProxyRequest
 	}{
 		{
 			name:           "Successful Request",
-			request:        events.APIGatewayProxyRequest{ /* Mock request data */ },
-			mockResponse:   events.APIGatewayProxyResponse{StatusCode: 200},
-			expectedLog:    "{\"level\":\"debug\",\"message\":\"[INF] [ ] [200]\"}",
+			expectedErr:    nil,
 			expectedStatus: 200,
+			expectedString: "200",
+			mockResponse:   events.APIGatewayProxyResponse{StatusCode: 200},
+			request:        util.GenerateRandomAPIGatewayProxyRequest(),
 		},
 		{
-			name: "400 - Path",
-			request: events.APIGatewayProxyRequest{
-				Path: "/hi/there",
-			},
-			mockResponse:   events.APIGatewayProxyResponse{StatusCode: 400},
-			expectedLog:    "/hi/there",
+			name:           "400 - Path",
+			expectedErr:    nil,
 			expectedStatus: 400,
+			expectedString: "/hi/there",
+			mockResponse:   events.APIGatewayProxyResponse{StatusCode: 400},
+			request: func() events.APIGatewayProxyRequest {
+				a := util.GenerateRandomAPIGatewayProxyRequest()
+				a.Path = "/hi/there"
+				return a
+			}(),
 		},
 		{
-			name: "400 - Path Parameters",
-			request: events.APIGatewayProxyRequest{
-				PathParameters: map[string]string{
+			name:           "400 - Path Parameters",
+			expectedErr:    nil,
+			expectedStatus: 400,
+			expectedString: "\"pathParams\":{\"pathKey\":\"pathVal\"}",
+			mockResponse:   events.APIGatewayProxyResponse{StatusCode: 400},
+			request: func() events.APIGatewayProxyRequest {
+				a := util.GenerateRandomAPIGatewayProxyRequest()
+				a.PathParameters = map[string]string{
 					"pathKey": "pathVal",
-				},
-			},
-			mockResponse:   events.APIGatewayProxyResponse{StatusCode: 400},
-			expectedLog:    "\"PathParameters\":{\"pathKey\":\"pathVal\"}",
-			expectedStatus: 400,
+				}
+				return a
+			}(),
 		},
 		{
-			name: "400 - Query String Parameters",
-			request: events.APIGatewayProxyRequest{
-				QueryStringParameters: map[string]string{
+			name:           "400 - Query String Parameters",
+			expectedErr:    nil,
+			expectedStatus: 400,
+			expectedString: "\"queryParams\":{\"qspKey\":\"qspVal\"}",
+			mockResponse:   events.APIGatewayProxyResponse{StatusCode: 400},
+			request: func() events.APIGatewayProxyRequest {
+				a := util.GenerateRandomAPIGatewayProxyRequest()
+				a.QueryStringParameters = map[string]string{
 					"qspKey": "qspVal",
-				},
-			},
-			mockResponse:   events.APIGatewayProxyResponse{StatusCode: 400},
-			expectedLog:    "ERR",
-			expectedStatus: 400,
+				}
+				return a
+			}(),
 		},
 		{
-			name: "400 - Multi Value Query String Parameters",
-			request: events.APIGatewayProxyRequest{
-				MultiValueQueryStringParameters: map[string][]string{
-					"mvqspKey": {"mvqspVal1", "mvqspVal2"},
-				},
-			},
-			mockResponse:   events.APIGatewayProxyResponse{StatusCode: 400},
-			expectedLog:    "\"MultiValueQueryParameters\":{\"mvqspKey\":[\"mvqspVal1\",\"mvqspVal2\"]}",
+			name:           "400 - Multi Value Query String Parameters",
+			expectedErr:    nil,
 			expectedStatus: 400,
+			expectedString: "\"multiParams\":{\"mvqspKey\":[\"mvqspVal1\",\"mvqspVal2\"]}",
+			mockResponse:   events.APIGatewayProxyResponse{StatusCode: 400},
+			request: func() events.APIGatewayProxyRequest {
+				a := util.GenerateRandomAPIGatewayProxyRequest()
+				a.MultiValueQueryStringParameters = map[string][]string{
+					"mvqspKey": {"mvqspVal1", "mvqspVal2"},
+				}
+				return a
+			}(),
 		},
 		{
 			name:           "Server Error",
-			request:        events.APIGatewayProxyRequest{},
-			mockResponse:   events.APIGatewayProxyResponse{StatusCode: 500},
-			expectedLog:    "ERR",
+			expectedErr:    nil,
 			expectedStatus: 500,
+			expectedString: "500",
+			mockResponse:   events.APIGatewayProxyResponse{StatusCode: 500},
+			request:        util.GenerateRandomAPIGatewayProxyRequest(),
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			// Setup middleware with the mock handler
-			middleware := lmw.InjectLambdaContextMW(lmw.LogRequestMW(mockHandler(tc.mockResponse, tc.mockError)))
+			middleware := InjectLambdaContextMW(LogRequestMW(mockHandler(tc.mockResponse, tc.expectedErr)))
 
 			// Invoke middleware with test request
 			_, _ = middleware(context.Background(), tc.request)
@@ -393,12 +408,19 @@ func TestLogRequestMW(t *testing.T) {
 				t.Fatalf("Failed to read log file: %v", err)
 			}
 
-			// Validate log contents
-			fmt.Println(fmt.Sprintf("string(logContents) [%s]", string(logContents)))
-			fmt.Println(fmt.Sprintf("tc.expectedLog [%s]", tc.expectedLog))
-			fmt.Println(fmt.Sprintf("strconv.Itoa(tc.expectedStatus) [%s]", strconv.Itoa(tc.expectedStatus)))
-			require.Contains(t, string(logContents), tc.expectedLog)
-			require.Contains(t, string(logContents), strconv.Itoa(tc.expectedStatus))
+			strContents := string(logContents)
+
+			require.Contains(t, strContents, tc.request.HTTPMethod)
+			require.Contains(t, strContents, tc.expectedString)
+			require.Contains(t, strContents, tc.request.RequestContext.RequestID)
+			require.Contains(t, strContents, tc.request.Path)
+			require.Contains(t, strContents, strconv.Itoa(tc.expectedStatus))
 		})
+	}
+}
+
+func mockHandler(response events.APIGatewayProxyResponse, err error) lcom.Handler {
+	return func(ctx context.Context, req events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
+		return response, err
 	}
 }
