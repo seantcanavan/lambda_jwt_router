@@ -19,6 +19,10 @@ func (lp *LambdaParams) GetUserID() string {
 	return chooseLongest(lp.UserIDPath, lp.UserIDQuery, lp.UserIDBody)
 }
 
+func (lp *LambdaParams) GetOwnerID() string {
+	return chooseLongest(lp.GetID(), lp.GetUserID())
+}
+
 func (lp *LambdaParams) GetUserType() string {
 	return chooseLongest(lp.UserTypePath, lp.UserTypeQuery, lp.UserTypeBody)
 }
