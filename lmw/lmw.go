@@ -6,6 +6,7 @@ import (
 	"github.com/golang-jwt/jwt"
 	"github.com/seantcanavan/lambda_jwt_router/lcom"
 	"github.com/seantcanavan/lambda_jwt_router/lmw/ljwt"
+	"github.com/seantcanavan/lambda_jwt_router/lreq"
 	"github.com/seantcanavan/lambda_jwt_router/lres"
 	"log"
 	"net/http"
@@ -48,12 +49,22 @@ func InjectLambdaContextMW(next lcom.Handler) lcom.Handler {
 		res events.APIGatewayProxyResponse,
 		err error,
 	) {
+
+		lambdaParams := &lcom.LambdaParams{}
+		err = lreq.UnmarshalReq(req, true, lambdaParams)
+		if err != nil {
+			return lres.ErrorRes(err)
+		}
+
+		ctx = context.WithValue(ctx, lcom.LambdaContextIDKey, lambdaParams.GetID())
 		ctx = context.WithValue(ctx, lcom.LambdaContextMethodKey, req.HTTPMethod)
 		ctx = context.WithValue(ctx, lcom.LambdaContextMultiParamsKey, req.MultiValueQueryStringParameters)
 		ctx = context.WithValue(ctx, lcom.LambdaContextPathKey, req.Path)
 		ctx = context.WithValue(ctx, lcom.LambdaContextPathParamsKey, req.PathParameters)
 		ctx = context.WithValue(ctx, lcom.LambdaContextQueryParamsKey, req.QueryStringParameters)
 		ctx = context.WithValue(ctx, lcom.LambdaContextRequestIDKey, req.RequestContext.RequestID)
+		ctx = context.WithValue(ctx, lcom.LambdaContextUserIDKey, lambdaParams.GetUserID())
+		ctx = context.WithValue(ctx, lcom.LambdaContextUserTypeKey, lambdaParams.GetUserType())
 
 		return next(ctx, req)
 	}
