@@ -82,7 +82,7 @@ func TestAllowOptionsMW(t *testing.T) {
 func TestDecodeAndInjectExpandedClaims(t *testing.T) {
 	t.Run("verify error is returned by DecodeExpandedMW when missing Authorization header", func(t *testing.T) {
 		req := events.APIGatewayProxyRequest{}
-		jwtMiddlewareHandler := DecodeExpandedMW(GenerateEmptyErrorHandler())
+		jwtMiddlewareHandler := DecodeExpandedMW(generateEmptyErrorHandler())
 		res, err := jwtMiddlewareHandler(nil, req)
 		require.Nil(t, err)
 		require.Equal(t, res.StatusCode, http.StatusBadRequest)
@@ -167,7 +167,7 @@ func GenerateSuccessHandlerAndMapExpandedContext() lcom.Handler {
 func TestDecodeAndInjectStandardClaims(t *testing.T) {
 	t.Run("verify error is returned by DecodeStandardMW when missing Authorization header", func(t *testing.T) {
 		req := events.APIGatewayProxyRequest{}
-		jwtMiddlewareHandler := DecodeStandardMW(GenerateEmptyErrorHandler())
+		jwtMiddlewareHandler := DecodeStandardMW(generateEmptyErrorHandler())
 		res, err := jwtMiddlewareHandler(nil, req)
 		require.Nil(t, err)
 		require.Equal(t, res.StatusCode, http.StatusBadRequest)
@@ -221,7 +221,7 @@ func TestDecodeAndInjectStandardClaims(t *testing.T) {
 
 func TestGenerateEmptyErrorHandler(t *testing.T) {
 	t.Run("verify empty error handler returns error", func(t *testing.T) {
-		errHandler := GenerateEmptyErrorHandler()
+		errHandler := generateEmptyErrorHandler()
 		res, err := errHandler(nil, util.GenerateRandomAPIGatewayProxyRequest())
 		require.Nil(t, err) // err handler embeds the error in the response, not the golang stack
 		require.Equal(t, res.StatusCode, http.StatusInternalServerError)
@@ -231,7 +231,7 @@ func TestGenerateEmptyErrorHandler(t *testing.T) {
 
 func TestGenerateEmptySuccessHandler(t *testing.T) {
 	t.Run("verify empty success handler returns success", func(t *testing.T) {
-		successHandler := GenerateEmptySuccessHandler()
+		successHandler := generateEmptySuccessHandler()
 		res, err := successHandler(nil, util.GenerateRandomAPIGatewayProxyRequest())
 		require.Nil(t, err)
 		require.Equal(t, res.StatusCode, http.StatusOK)
@@ -239,7 +239,8 @@ func TestGenerateEmptySuccessHandler(t *testing.T) {
 	})
 }
 
-func GenerateEmptyErrorHandler() lcom.Handler {
+// generateEmptyErrorHandler generates a lcom.Handler function that returns a 500 error response
+func generateEmptyErrorHandler() lcom.Handler {
 	return func(ctx context.Context, req events.APIGatewayProxyRequest) (
 		events.APIGatewayProxyResponse,
 		error) {
@@ -250,7 +251,8 @@ func GenerateEmptyErrorHandler() lcom.Handler {
 	}
 }
 
-func GenerateEmptySuccessHandler() lcom.Handler {
+// generateEmptySuccessHandler generates a lcom.Handler function that returns a 200 success response
+func generateEmptySuccessHandler() lcom.Handler {
 	return func(ctx context.Context, req events.APIGatewayProxyRequest) (
 		events.APIGatewayProxyResponse,
 		error) {
