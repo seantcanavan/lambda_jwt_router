@@ -42,12 +42,15 @@ const ContentTypeKey = "Content-Type"
 
 // Use these values to get/set values in the global context
 
+const LambdaContextIDKey = "id"
 const LambdaContextMethodKey = "method"
 const LambdaContextMultiParamsKey = "multiParams"
 const LambdaContextPathKey = "path"
 const LambdaContextPathParamsKey = "pathParams"
 const LambdaContextQueryParamsKey = "queryParams"
 const LambdaContextRequestIDKey = "requestId"
+const LambdaContextUserIDKey = "userId"
+const LambdaContextUserTypeKey = "userType"
 
 var ErrMarshalMapClaims = errors.New("unable to Marshal map claims: %w")
 var ErrNoAuthorizationHeader = errors.New("no Authorization header value set: %w")

@@ -3,16 +3,20 @@ package lmw
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/golang-jwt/jwt"
 	"github.com/joho/godotenv"
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 	"github.com/seantcanavan/lambda_jwt_router/internal/util"
 	"github.com/seantcanavan/lambda_jwt_router/lcom"
 	"github.com/seantcanavan/lambda_jwt_router/lmw/ljwt"
 	"github.com/seantcanavan/lambda_jwt_router/lres"
 	"github.com/stretchr/testify/require"
-	"log"
 	"net/http"
+	"os"
+	"strconv"
 	"testing"
 	"time"
 )
@@ -25,7 +29,7 @@ func TestMain(m *testing.M) {
 func setup() {
 	err := godotenv.Load("../.env")
 	if err != nil {
-		log.Fatalf("Unable to load .env file: %s", err)
+		log.Fatal().Msg(fmt.Sprintf("Unable to load .env file: %s", err))
 	}
 }
 
@@ -286,5 +290,137 @@ func generateSuccessHandlerAndMapStandardContext(t *testing.T) lcom.Handler {
 			StatusCode: http.StatusOK,
 			Body:       string(jsonBytes),
 		}, nil
+	}
+}
+
+func TestLogRequestMW(t *testing.T) {
+	// Setup Zerolog to write to a file
+	logFile := "test_log.txt"
+	file, _ := os.Create(logFile)
+
+	defer func() {
+		err := file.Close()
+		if err != nil {
+			panic(err)
+		}
+	}()
+
+	defer func() {
+		err := os.Remove(logFile)
+		if err != nil {
+			panic(err)
+		}
+	}()
+
+	log.Logger = zerolog.New(file)
+
+	testCases := []struct {
+		name           string
+		expectedErr    error
+		expectedStatus int
+		expectedString string
+		mockResponse   events.APIGatewayProxyResponse
+		request        events.APIGatewayProxyRequest
+	}{
+		{
+			name:           "Successful Request",
+			expectedErr:    nil,
+			expectedStatus: 200,
+			expectedString: "200",
+			mockResponse:   events.APIGatewayProxyResponse{StatusCode: 200},
+			request:        util.GenerateRandomAPIGatewayProxyRequest(),
+		},
+		{
+			name:           "400 - Path",
+			expectedErr:    nil,
+			expectedStatus: 400,
+			expectedString: "/hi/there",
+			mockResponse:   events.APIGatewayProxyResponse{StatusCode: 400},
+			request: func() events.APIGatewayProxyRequest {
+				a := util.GenerateRandomAPIGatewayProxyRequest()
+				a.Path = "/hi/there"
+				return a
+			}(),
+		},
+		{
+			name:           "400 - Path Parameters",
+			expectedErr:    nil,
+			expectedStatus: 400,
+			expectedString: "\"pathParams\":{\"pathKey\":\"pathVal\"}",
+			mockResponse:   events.APIGatewayProxyResponse{StatusCode: 400},
+			request: func() events.APIGatewayProxyRequest {
+				a := util.GenerateRandomAPIGatewayProxyRequest()
+				a.PathParameters = map[string]string{
+					"pathKey": "pathVal",
+				}
+				return a
+			}(),
+		},
+		{
+			name:           "400 - Query String Parameters",
+			expectedErr:    nil,
+			expectedStatus: 400,
+			expectedString: "\"queryParams\":{\"qspKey\":\"qspVal\"}",
+			mockResponse:   events.APIGatewayProxyResponse{StatusCode: 400},
+			request: func() events.APIGatewayProxyRequest {
+				a := util.GenerateRandomAPIGatewayProxyRequest()
+				a.QueryStringParameters = map[string]string{
+					"qspKey": "qspVal",
+				}
+				return a
+			}(),
+		},
+		{
+			name:           "400 - Multi Value Query String Parameters",
+			expectedErr:    nil,
+			expectedStatus: 400,
+			expectedString: "\"multiParams\":{\"mvqspKey\":[\"mvqspVal1\",\"mvqspVal2\"]}",
+			mockResponse:   events.APIGatewayProxyResponse{StatusCode: 400},
+			request: func() events.APIGatewayProxyRequest {
+				a := util.GenerateRandomAPIGatewayProxyRequest()
+				a.MultiValueQueryStringParameters = map[string][]string{
+					"mvqspKey": {"mvqspVal1", "mvqspVal2"},
+				}
+				return a
+			}(),
+		},
+		{
+			name:           "Server Error",
+			expectedErr:    nil,
+			expectedStatus: 500,
+			expectedString: "500",
+			mockResponse:   events.APIGatewayProxyResponse{StatusCode: 500},
+			request:        util.GenerateRandomAPIGatewayProxyRequest(),
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			// Setup middleware with the mock handler
+			middleware := InjectLambdaContextMW(LogRequestMW(mockHandler(tc.mockResponse, tc.expectedErr)))
+
+			// Invoke middleware with test request
+			_, _ = middleware(context.Background(), tc.request)
+
+			// Read log file
+			logContents, err := os.ReadFile(logFile)
+			if err != nil {
+				t.Fatalf("Failed to read log file: %v", err)
+			}
+
+			strContents := string(logContents)
+
+			require.Contains(t, strContents, tc.request.HTTPMethod)
+			require.Contains(t, strContents, tc.expectedString)
+			require.Contains(t, strContents, tc.request.RequestContext.RequestID)
+			require.Contains(t, strContents, tc.request.Path)
+			require.Contains(t, strContents, strconv.Itoa(tc.expectedStatus))
+		})
+	}
+}
+
+func mockHandler(response events.APIGatewayProxyResponse, err error) lcom.Handler {
+	return func(ctx context.Context, req events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
+		return response, err
 	}
 }
