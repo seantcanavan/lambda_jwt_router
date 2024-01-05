@@ -1,4 +1,4 @@
-package lambda_router
+package lres
 
 import (
 	"encoding/base64"
@@ -6,8 +6,10 @@ import (
 	"errors"
 	"fmt"
 	"github.com/aws/aws-lambda-go/events"
+	"github.com/seantcanavan/lambda_jwt_router/lcom"
 	"net/http"
 	"os"
+	"reflect"
 )
 
 // ExposeServerErrors is a boolean indicating whether the ErrorRes function
@@ -34,7 +36,7 @@ func CustomRes(httpStatus int, headers map[string]string, data interface{}) (
 		headers = make(map[string]string)
 	}
 
-	headers[ContentTypeKey] = "application/json; charset=UTF-8"
+	headers[lcom.ContentTypeKey] = "application/json; charset=UTF-8"
 
 	return events.APIGatewayProxyResponse{
 		StatusCode:      httpStatus,
@@ -78,10 +80,10 @@ func ErrorRes(err error) (events.APIGatewayProxyResponse, error) {
 func FileRes(contentType string, headers map[string]string, fileBytes []byte) (events.APIGatewayProxyResponse, error) {
 	if headers == nil {
 		headers = map[string]string{
-			ContentTypeKey: contentType,
+			lcom.ContentTypeKey: contentType,
 		}
 	} else {
-		headers[ContentTypeKey] = contentType
+		headers[lcom.ContentTypeKey] = contentType
 	}
 
 	return events.APIGatewayProxyResponse{
@@ -97,10 +99,10 @@ func FileRes(contentType string, headers map[string]string, fileBytes []byte) (e
 func FileB64Res(contentType string, headers map[string]string, fileBytes []byte) (events.APIGatewayProxyResponse, error) {
 	if headers == nil {
 		headers = map[string]string{
-			ContentTypeKey: contentType,
+			lcom.ContentTypeKey: contentType,
 		}
 	} else {
-		headers[ContentTypeKey] = contentType
+		headers[lcom.ContentTypeKey] = contentType
 	}
 
 	return events.APIGatewayProxyResponse{
@@ -148,21 +150,33 @@ func (err HTTPError) Error() string {
 
 // addCors injects CORS Origin and CORS Methods headers into the response object before it's returned.
 func addCors(headers map[string]string) map[string]string {
-	corsHeaders := os.Getenv(CORSHeadersEnvKey)
-	corsMethods := os.Getenv(CORSMethodsEnvKey)
-	corsOrigins := os.Getenv(CORSOriginEnvKey)
+	corsHeaders := os.Getenv(lcom.CORSHeadersEnvKey)
+	corsMethods := os.Getenv(lcom.CORSMethodsEnvKey)
+	corsOrigins := os.Getenv(lcom.CORSOriginEnvKey)
 
 	if corsHeaders != "" {
-		headers[CORSHeadersHeaderKey] = corsHeaders
+		headers[lcom.CORSHeadersHeaderKey] = corsHeaders
 	}
 
 	if corsMethods != "" {
-		headers[CORSMethodsHeaderKey] = corsMethods
+		headers[lcom.CORSMethodsHeaderKey] = corsMethods
 	}
 
 	if corsOrigins != "" {
-		headers[CORSOriginHeaderKey] = corsOrigins
+		headers[lcom.CORSOriginHeaderKey] = corsOrigins
 	}
 
 	return headers
+}
+
+// UnmarshalRes should generally be used only when testing as normally you return the response
+// directly to the caller and won't need to Unmarshal it. However, if you are testing locally then
+// it will help you extract the response body of a lambda request and marshal it to an object.
+func UnmarshalRes(res events.APIGatewayProxyResponse, target interface{}) error {
+	rv := reflect.ValueOf(target)
+	if rv.Kind() != reflect.Ptr || rv.IsNil() {
+		return errors.New("invalid unmarshal target, must be pointer to struct")
+	}
+
+	return json.Unmarshal([]byte(res.Body), target)
 }
