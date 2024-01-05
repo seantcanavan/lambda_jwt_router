@@ -2,18 +2,17 @@ package lmw
 
 import (
 	"context"
+	"encoding/json"
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/golang-jwt/jwt"
+	"github.com/rs/zerolog/log"
 	"github.com/seantcanavan/lambda_jwt_router/lcom"
 	"github.com/seantcanavan/lambda_jwt_router/lmw/ljwt"
 	"github.com/seantcanavan/lambda_jwt_router/lreq"
 	"github.com/seantcanavan/lambda_jwt_router/lres"
-	"log"
 	"net/http"
 )
 
-// LogRequestMW is a standard middleware function that will log every incoming
-// events.APIGatewayProxyRequest request and the pertinent information in it.
 func LogRequestMW(next lcom.Handler) lcom.Handler {
 	return func(ctx context.Context, req events.APIGatewayProxyRequest) (
 		res events.APIGatewayProxyResponse,
@@ -34,6 +33,22 @@ func LogRequestMW(next lcom.Handler) lcom.Handler {
 			if code >= 400 {
 				level = "ERR"
 			}
+		}
+
+		if code > 399 {
+			resJSON, _ := json.Marshal(res)
+			log.Error().
+				Interface(lcom.LambdaContextIDKey, ctx.Value(lcom.LambdaContextIDKey)).
+				Interface(lcom.LambdaContextMethodKey, ctx.Value(lcom.LambdaContextMethodKey)).
+				Interface(lcom.LambdaContextMultiParamsKey, ctx.Value(lcom.LambdaContextMultiParamsKey)).
+				Interface(lcom.LambdaContextPathKey, ctx.Value(lcom.LambdaContextPathKey)).
+				Interface(lcom.LambdaContextPathParamsKey, ctx.Value(lcom.LambdaContextPathParamsKey)).
+				Interface(lcom.LambdaContextQueryParamsKey, ctx.Value(lcom.LambdaContextQueryParamsKey)).
+				Interface(lcom.LambdaContextRequestIDKey, ctx.Value(lcom.LambdaContextRequestIDKey)).
+				Interface(lcom.LambdaContextUserIDKey, ctx.Value(lcom.LambdaContextUserIDKey)).
+				Interface(lcom.LambdaContextUserTypeKey, ctx.Value(lcom.LambdaContextUserTypeKey)).
+				RawJSON("res", resJSON).
+				Msg("error encountered")
 		}
 
 		log.Printf(format, level, req.HTTPMethod, req.Path, code, extra)

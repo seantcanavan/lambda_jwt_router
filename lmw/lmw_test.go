@@ -3,16 +3,19 @@ package lmw
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/golang-jwt/jwt"
 	"github.com/joho/godotenv"
+	"github.com/rs/zerolog"
 	"github.com/seantcanavan/lambda_jwt_router/internal/util"
 	"github.com/seantcanavan/lambda_jwt_router/lcom"
 	"github.com/seantcanavan/lambda_jwt_router/lmw/ljwt"
 	"github.com/seantcanavan/lambda_jwt_router/lres"
 	"github.com/stretchr/testify/require"
-	"log"
 	"net/http"
+	"os"
+	"strconv"
 	"testing"
 	"time"
 )
@@ -286,5 +289,116 @@ func generateSuccessHandlerAndMapStandardContext(t *testing.T) lcom.Handler {
 			StatusCode: http.StatusOK,
 			Body:       string(jsonBytes),
 		}, nil
+	}
+}
+
+func TestLogRequestMW(t *testing.T) {
+	// Setup Zerolog to write to a file
+	logFile := "test_log.txt"
+	file, _ := os.Create(logFile)
+
+	defer func() {
+		err := file.Close()
+		if err != nil {
+			panic(err)
+		}
+	}()
+
+	defer func() {
+		err := os.Remove(logFile)
+		if err != nil {
+			panic(err)
+		}
+	}()
+
+	log.Logger = zerolog.New(file)
+
+	testCases := []struct {
+		name           string
+		request        events.APIGatewayProxyRequest
+		mockResponse   events.APIGatewayProxyResponse
+		mockError      error
+		expectedLog    string
+		expectedStatus int
+	}{
+		{
+			name:           "Successful Request",
+			request:        events.APIGatewayProxyRequest{ /* Mock request data */ },
+			mockResponse:   events.APIGatewayProxyResponse{StatusCode: 200},
+			expectedLog:    "{\"level\":\"debug\",\"message\":\"[INF] [ ] [200]\"}",
+			expectedStatus: 200,
+		},
+		{
+			name: "400 - Path",
+			request: events.APIGatewayProxyRequest{
+				Path: "/hi/there",
+			},
+			mockResponse:   events.APIGatewayProxyResponse{StatusCode: 400},
+			expectedLog:    "/hi/there",
+			expectedStatus: 400,
+		},
+		{
+			name: "400 - Path Parameters",
+			request: events.APIGatewayProxyRequest{
+				PathParameters: map[string]string{
+					"pathKey": "pathVal",
+				},
+			},
+			mockResponse:   events.APIGatewayProxyResponse{StatusCode: 400},
+			expectedLog:    "\"PathParameters\":{\"pathKey\":\"pathVal\"}",
+			expectedStatus: 400,
+		},
+		{
+			name: "400 - Query String Parameters",
+			request: events.APIGatewayProxyRequest{
+				QueryStringParameters: map[string]string{
+					"qspKey": "qspVal",
+				},
+			},
+			mockResponse:   events.APIGatewayProxyResponse{StatusCode: 400},
+			expectedLog:    "ERR",
+			expectedStatus: 400,
+		},
+		{
+			name: "400 - Multi Value Query String Parameters",
+			request: events.APIGatewayProxyRequest{
+				MultiValueQueryStringParameters: map[string][]string{
+					"mvqspKey": {"mvqspVal1", "mvqspVal2"},
+				},
+			},
+			mockResponse:   events.APIGatewayProxyResponse{StatusCode: 400},
+			expectedLog:    "\"MultiValueQueryParameters\":{\"mvqspKey\":[\"mvqspVal1\",\"mvqspVal2\"]}",
+			expectedStatus: 400,
+		},
+		{
+			name:           "Server Error",
+			request:        events.APIGatewayProxyRequest{},
+			mockResponse:   events.APIGatewayProxyResponse{StatusCode: 500},
+			expectedLog:    "ERR",
+			expectedStatus: 500,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			// Setup middleware with the mock handler
+			middleware := lmw.InjectLambdaContextMW(lmw.LogRequestMW(mockHandler(tc.mockResponse, tc.mockError)))
+
+			// Invoke middleware with test request
+			_, _ = middleware(context.Background(), tc.request)
+
+			// Read log file
+			logContents, err := os.ReadFile(logFile)
+			if err != nil {
+				t.Fatalf("Failed to read log file: %v", err)
+			}
+
+			// Validate log contents
+			fmt.Println(fmt.Sprintf("string(logContents) [%s]", string(logContents)))
+			fmt.Println(fmt.Sprintf("tc.expectedLog [%s]", tc.expectedLog))
+			fmt.Println(fmt.Sprintf("strconv.Itoa(tc.expectedStatus) [%s]", strconv.Itoa(tc.expectedStatus)))
+			require.Contains(t, string(logContents), tc.expectedLog)
+			require.Contains(t, string(logContents), strconv.Itoa(tc.expectedStatus))
+		})
 	}
 }
