@@ -2,6 +2,7 @@ package lmw
 
 import (
 	"context"
+	"encoding/json"
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/golang-jwt/jwt"
 	"github.com/rs/zerolog/log"
@@ -34,16 +35,20 @@ func LogRequestMW(next lcom.Handler) lcom.Handler {
 			lcom.LambdaContextUserTypeKey,
 		}
 
-		logContextValues(ctx, res.StatusCode, ctxVals)
+		logContextValues(ctx, res, ctxVals)
 
 		return res, err
 	}
 }
 
-func logContextValues(ctx context.Context, statusCode int, ctxVals []string) {
+func logContextValues(ctx context.Context, res events.APIGatewayProxyResponse, ctxVals []string) {
 	event := log.Info()
-	if statusCode > 399 {
+	if res.StatusCode > 399 {
 		event = log.Error()
+		body, err := json.Marshal(res.Body)
+		if err == nil {
+			event.RawJSON("body", body)
+		}
 	}
 
 	for _, currentKey := range ctxVals {
@@ -53,7 +58,7 @@ func logContextValues(ctx context.Context, statusCode int, ctxVals []string) {
 		}
 	}
 
-	event.Int("statusCode", statusCode)
+	event.Int("statusCode", res.StatusCode)
 	event.Msg("request finished")
 }
 
