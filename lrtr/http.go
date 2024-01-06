@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"github.com/google/uuid"
 	"github.com/seantcanavan/lambda_jwt_router/lcom"
 	"io"
 	"log"
@@ -62,6 +63,7 @@ func (l *Router) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		MultiValueQueryStringParameters: map[string][]string(r.URL.Query()),
 		Path:                            r.URL.Path,
 		QueryStringParameters:           singleValueQuery,
+		RequestContext:                  events.APIGatewayProxyRequestContext{RequestID: uuid.New().String()},
 	}
 
 	// if submitting a multi-part form / binary data then it needs to be base64

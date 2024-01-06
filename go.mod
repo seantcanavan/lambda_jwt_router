@@ -6,6 +6,7 @@ require (
 	cloud.google.com/go v0.111.0
 	github.com/aws/aws-lambda-go v1.37.0
 	github.com/golang-jwt/jwt v3.2.2+incompatible
+	github.com/google/uuid v1.4.0
 	github.com/joho/godotenv v1.4.0
 	github.com/rs/zerolog v1.31.0
 	github.com/stretchr/testify v1.8.4
