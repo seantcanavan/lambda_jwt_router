@@ -157,33 +157,11 @@ func unmarshalField(
 	strVal, ok := params[param]
 	strVals, okMulti := multiParam[param]
 
-	// check for empty / unset values and return no error if so
-	if !ok && !okMulti || (strVal == "" && strVals == nil) {
-		return nil
-	}
-
-	//fmt.Println(fmt.Sprintf("param %s", param))
-	//fmt.Println(fmt.Sprintf("params[param] %s", strVal))
-	//fmt.Println(fmt.Sprintf("multiParam[param] %+v", strVals))
-	//fmt.Println(fmt.Sprintf("typeField.Name() %s", typeField.Name()))
-	//fmt.Println(fmt.Sprintf("typeField.Kind() %s", typeField.Kind()))
-	//
-	//if typeField.Kind() == reflect.Array ||
-	//	typeField.Kind() == reflect.Chan ||
-	//	typeField.Kind() == reflect.Map ||
-	//	typeField.Kind() == reflect.Ptr ||
-	//	typeField.Kind() == reflect.Slice {
-	//	fmt.Println(fmt.Sprintf("typeField.Elem() %s", typeField.Elem()))
-	//	fmt.Println(fmt.Sprintf("typeField.Elem().Kind() %s", typeField.Elem().Kind()))
-	//}
-
-	//fmt.Println(fmt.Sprintf("valueField.Type() %s", valueField.Type()))
-	//fmt.Println(fmt.Sprintf("valueField.Kind() %s", valueField.Kind()))
-	//
-	//fmt.Print("\n\n\n")
-
 	switch typeField.Kind() {
 	case reflect.Array:
+		if strVal == "" {
+			return nil
+		}
 		objectID, err := primitive.ObjectIDFromHex(strVal)
 		if err != nil {
 			return fmt.Errorf("invalid ObjectID: %s", err)
@@ -252,12 +230,18 @@ func unmarshalField(
 				valueField.Set(intPtr)
 			case reflect.Struct:
 				if typeField.Elem() == reflect.TypeOf(civil.Date{}) {
+					if strVal == "" {
+						return nil
+					}
 					parsedCivil, err := civil.ParseDate(strVal)
 					if err != nil {
 						return err
 					}
 					valueField.Set(reflect.ValueOf(&parsedCivil))
 				} else if typeField.Elem() == reflect.TypeOf(time.Time{}) {
+					if strVal == "" {
+						return nil
+					}
 					parsedTime, err := time.Parse(time.RFC3339, strVal)
 					if err != nil {
 						return err
@@ -271,6 +255,9 @@ func unmarshalField(
 			default:
 				switch typeField.Elem() {
 				case reflect.TypeOf(primitive.ObjectID{}):
+					if strVal == "" {
+						return nil
+					}
 					objectID, err := primitive.ObjectIDFromHex(strVal)
 					if err != nil {
 						return fmt.Errorf("invalid ObjectID: %s", err)
@@ -340,12 +327,18 @@ func unmarshalField(
 	case reflect.Struct:
 		switch valueField.Type() {
 		case reflect.TypeOf(time.Time{}):
+			if strVal == "" {
+				return nil
+			}
 			parsedTime, err := time.Parse(time.RFC3339, strVal)
 			if err != nil {
 				return err
 			}
 			valueField.Set(reflect.ValueOf(parsedTime))
 		case reflect.TypeOf(civil.Date{}):
+			if strVal == "" {
+				return nil
+			}
 			parsedCivil, err := civil.ParseDate(strVal)
 			if err != nil {
 				return err
