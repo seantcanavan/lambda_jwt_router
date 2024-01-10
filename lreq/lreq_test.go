@@ -148,7 +148,7 @@ func Test_UnmarshalReq(t *testing.T) {
 		)
 		require.NoError(t, err)
 	})
-	t.Run("valid input unset values", func(t *testing.T) {
+	t.Run("valid input - mongo ID unset", func(t *testing.T) {
 		var input util.MockListReq
 		err := UnmarshalReq(
 			events.APIGatewayProxyRequest{
@@ -161,7 +161,71 @@ func Test_UnmarshalReq(t *testing.T) {
 		)
 		require.NoError(t, err)
 	})
-
+	t.Run("valid input - mongo ID pointer unset", func(t *testing.T) {
+		var input util.MockListReq
+		err := UnmarshalReq(
+			events.APIGatewayProxyRequest{
+				QueryStringParameters: map[string]string{
+					"mongoIdPtr": "",
+				},
+			},
+			false,
+			&input,
+		)
+		require.NoError(t, err)
+	})
+	t.Run("valid input - time unset", func(t *testing.T) {
+		var input util.MockListReq
+		err := UnmarshalReq(
+			events.APIGatewayProxyRequest{
+				QueryStringParameters: map[string]string{
+					"time": "",
+				},
+			},
+			false,
+			&input,
+		)
+		require.NoError(t, err)
+	})
+	t.Run("valid input - time pointer unset", func(t *testing.T) {
+		var input util.MockListReq
+		err := UnmarshalReq(
+			events.APIGatewayProxyRequest{
+				QueryStringParameters: map[string]string{
+					"timePtr": "",
+				},
+			},
+			false,
+			&input,
+		)
+		require.NoError(t, err)
+	})
+	t.Run("valid input - civil unset", func(t *testing.T) {
+		var input util.MockListReq
+		err := UnmarshalReq(
+			events.APIGatewayProxyRequest{
+				QueryStringParameters: map[string]string{
+					"civil": "",
+				},
+			},
+			false,
+			&input,
+		)
+		require.NoError(t, err)
+	})
+	t.Run("valid input - civil pointer unset", func(t *testing.T) {
+		var input util.MockListReq
+		err := UnmarshalReq(
+			events.APIGatewayProxyRequest{
+				QueryStringParameters: map[string]string{
+					"civilPtr": "",
+				},
+			},
+			false,
+			&input,
+		)
+		require.NoError(t, err)
+	})
 	t.Run("invalid path&query input", func(t *testing.T) {
 		var input util.MockListReq
 		err := UnmarshalReq(
