@@ -21,7 +21,7 @@ func TestBooksLambda(t *testing.T) {
 		require.NoError(t, err)
 
 		createdBook := &Book{}
-		err = lres.UnmarshalRes(createRes, createdBook)
+		err = lres.Unmarshal(createRes, createdBook)
 		require.NoError(t, err)
 
 		require.Equal(t, cReq.Author, createdBook.Author)
@@ -35,7 +35,7 @@ func TestBooksLambda(t *testing.T) {
 
 			gotBook := &Book{}
 
-			err = lres.UnmarshalRes(getRes, gotBook)
+			err = lres.Unmarshal(getRes, gotBook)
 			require.NoError(t, err)
 
 			require.Equal(t, createdBook.Title, gotBook.Title)
@@ -58,7 +58,7 @@ func TestBooksLambda(t *testing.T) {
 			require.NoError(t, err)
 
 			updatedBook := &Book{}
-			err = lres.UnmarshalRes(updateRes, updatedBook)
+			err = lres.Unmarshal(updateRes, updatedBook)
 			require.NoError(t, err)
 
 			require.Equal(t, uReq.Author, updatedBook.Author)
@@ -71,7 +71,7 @@ func TestBooksLambda(t *testing.T) {
 				require.NoError(t, err)
 
 				deletedBook := &Book{}
-				err = lres.UnmarshalRes(deleteRes, deletedBook)
+				err = lres.Unmarshal(deleteRes, deletedBook)
 				require.NoError(t, err)
 
 				require.Equal(t, updatedBook.Title, deletedBook.Title)

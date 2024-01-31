@@ -32,23 +32,23 @@ func TestCustomRes(t *testing.T) {
 		StructKey: "structValue",
 	}
 
-	res, err := CustomRes(httpStatus, headers, structValue)
+	res, err := Custom(httpStatus, headers, structValue)
 	require.Nil(t, err)
 
-	t.Run("verify CustomRes returns the struct in the response body", func(t *testing.T) {
+	t.Run("verify Custom returns the struct in the response body", func(t *testing.T) {
 		var returnedStruct customStruct
-		err = UnmarshalRes(res, &returnedStruct)
+		err = Unmarshal(res, &returnedStruct)
 		require.Nil(t, err)
 
 		require.Equal(t, structValue, returnedStruct)
 	})
-	t.Run("verify CustomRes returns the key value pair in the response headers", func(t *testing.T) {
+	t.Run("verify Custom returns the key value pair in the response headers", func(t *testing.T) {
 		require.Equal(t, res.Headers["key"], headers["key"])
 	})
-	t.Run("verify CustomRes returns the correct status code", func(t *testing.T) {
+	t.Run("verify Custom returns the correct status code", func(t *testing.T) {
 		require.Equal(t, httpStatus, res.StatusCode)
 	})
-	t.Run("verify CustomRes returns CORS headers", func(t *testing.T) {
+	t.Run("verify Custom returns CORS headers", func(t *testing.T) {
 		require.Equal(t, headersHeaderVal, res.Headers[lcom.CORSHeadersHeaderKey])
 		require.Equal(t, methodsHeaderVal, res.Headers[lcom.CORSMethodsHeaderKey])
 		require.Equal(t, originHeaderVal, res.Headers[lcom.CORSOriginHeaderKey])
@@ -56,15 +56,15 @@ func TestCustomRes(t *testing.T) {
 }
 
 func TestEmptyRes(t *testing.T) {
-	res, err := EmptyRes()
+	res, err := Empty()
 	require.Equal(t, http.StatusOK, res.StatusCode)
 	require.Nil(t, err)
 	require.Equal(t, "{}", res.Body)
 
-	t.Run("verify EmptyRes returns the correct status code", func(t *testing.T) {
+	t.Run("verify Empty returns the correct status code", func(t *testing.T) {
 		require.Equal(t, http.StatusOK, res.StatusCode)
 	})
-	t.Run("verify EmptyRes returns CORS headers", func(t *testing.T) {
+	t.Run("verify Empty returns CORS headers", func(t *testing.T) {
 		require.Equal(t, res.Headers[lcom.CORSHeadersEnvKey], "")
 		require.Equal(t, res.Headers[lcom.CORSMethodsEnvKey], "")
 		require.Equal(t, res.Headers[lcom.CORSOriginEnvKey], "")
@@ -75,46 +75,46 @@ func TestErrorRes(t *testing.T) {
 	setCors(t, "*", "*", "*")
 	defer unsetCors(t)
 
-	t.Run("Handle an HTTPError ErrorRes without ExposeServerErrors set and verify CORS", func(t *testing.T) {
-		res, _ := ErrorRes(HTTPError{
+	t.Run("Handle an HTTPError Error without ExposeServerErrors set and verify CORS", func(t *testing.T) {
+		res, _ := Error(HTTPError{
 			Status:  http.StatusBadRequest,
 			Message: "Invalid input",
 		})
 		require.Equal(t, http.StatusBadRequest, res.StatusCode, "status status must be correct")
 		require.Equal(t, `{"status":400,"message":"Invalid input"}`, res.Body, "body must be correct")
-		t.Run("verify ErrorRes returns CORS headers", func(t *testing.T) {
+		t.Run("verify Error returns CORS headers", func(t *testing.T) {
 			require.Equal(t, res.Headers[lcom.CORSHeadersHeaderKey], "*")
 			require.Equal(t, res.Headers[lcom.CORSMethodsHeaderKey], "*")
 			require.Equal(t, res.Headers[lcom.CORSOriginHeaderKey], "*")
 		})
 	})
-	t.Run("Handle an HTTPError for ErrorRes when ExposeServerErrors is true", func(t *testing.T) {
+	t.Run("Handle an HTTPError for Error when ExposeServerErrors is true", func(t *testing.T) {
 		ExposeServerErrors = true
-		res, _ := ErrorRes(HTTPError{
+		res, _ := Error(HTTPError{
 			Status:  http.StatusInternalServerError,
 			Message: "database down",
 		})
 		require.Equal(t, http.StatusInternalServerError, res.StatusCode, "status must be correct")
 		require.Equal(t, `{"status":500,"message":"database down"}`, res.Body, "body must be correct")
 	})
-	t.Run("Handle an HTTPError for ErrorRes when ExposeServerErrors is false", func(t *testing.T) {
+	t.Run("Handle an HTTPError for Error when ExposeServerErrors is false", func(t *testing.T) {
 		ExposeServerErrors = false
-		res, _ := ErrorRes(HTTPError{
+		res, _ := Error(HTTPError{
 			Status:  http.StatusInternalServerError,
 			Message: "database down",
 		})
 		require.Equal(t, http.StatusInternalServerError, res.StatusCode, "status must be correct")
 		require.Equal(t, `{"status":500,"message":"Internal Server Error"}`, res.Body, "body must be correct")
 	})
-	t.Run("Handle a general error for ErrorRes when ExposeServerErrors is true", func(t *testing.T) {
+	t.Run("Handle a general error for Error when ExposeServerErrors is true", func(t *testing.T) {
 		ExposeServerErrors = true
-		res, _ := ErrorRes(errors.New("database down"))
+		res, _ := Error(errors.New("database down"))
 		require.Equal(t, http.StatusInternalServerError, res.StatusCode, "status must be correct")
 		require.Equal(t, `{"status":500,"message":"database down"}`, res.Body, "body must be correct")
 	})
-	t.Run("Handle a general error for ErrorRes when ExposeServerErrors is false", func(t *testing.T) {
+	t.Run("Handle a general error for Error when ExposeServerErrors is false", func(t *testing.T) {
 		ExposeServerErrors = false
-		res, _ := ErrorRes(errors.New("database down"))
+		res, _ := Error(errors.New("database down"))
 		require.Equal(t, http.StatusInternalServerError, res.StatusCode, "status must be correct")
 		require.Equal(t, `{"status":500,"message":"Internal Server Error"}`, res.Body, "body must be correct")
 	})
@@ -128,22 +128,22 @@ func TestFileRes(t *testing.T) {
 header1, header2
 value1, value2
 `
-	res, err := FileRes("text/csv", map[string]string{"key": "value"}, []byte(csvContent))
+	res, err := File("text/csv", map[string]string{"key": "value"}, []byte(csvContent))
 	require.Nil(t, err)
 
-	t.Run("verify FileRes returns the correct status code", func(t *testing.T) {
+	t.Run("verify File returns the correct status code", func(t *testing.T) {
 		require.Equal(t, http.StatusOK, res.StatusCode)
 	})
-	t.Run("verify FileRes marks the response as NOT base64 encoded", func(t *testing.T) {
+	t.Run("verify File marks the response as NOT base64 encoded", func(t *testing.T) {
 		require.False(t, res.IsBase64Encoded)
 	})
-	t.Run("verify FileRes embeds the bytes correctly in the response object as a string", func(t *testing.T) {
+	t.Run("verify File embeds the bytes correctly in the response object as a string", func(t *testing.T) {
 		require.Equal(t, csvContent, res.Body)
 	})
-	t.Run("verify FileRes preserves the original header values", func(t *testing.T) {
+	t.Run("verify File preserves the original header values", func(t *testing.T) {
 		require.Equal(t, "value", res.Headers["key"])
 	})
-	t.Run("verify FileRes returns CORS headers", func(t *testing.T) {
+	t.Run("verify File returns CORS headers", func(t *testing.T) {
 		require.Equal(t, res.Headers[lcom.CORSHeadersHeaderKey], "*")
 		require.Equal(t, res.Headers[lcom.CORSMethodsHeaderKey], "*")
 		require.Equal(t, res.Headers[lcom.CORSOriginHeaderKey], "*")
@@ -158,26 +158,26 @@ func TestFileB64Res(t *testing.T) {
 header1, header2
 value1, value2
 `
-	res, err := FileB64Res("text/csv", map[string]string{"key": "value"}, []byte(csvContent))
+	res, err := FileB64("text/csv", map[string]string{"key": "value"}, []byte(csvContent))
 	require.Nil(t, err)
 
-	t.Run("verify FileB64Res returns the correct status code", func(t *testing.T) {
+	t.Run("verify FileB64 returns the correct status code", func(t *testing.T) {
 		require.Equal(t, http.StatusOK, res.StatusCode)
 	})
-	t.Run("verify FileB64Res marks the response as base64 encoded", func(t *testing.T) {
+	t.Run("verify FileB64 marks the response as base64 encoded", func(t *testing.T) {
 		require.True(t, res.IsBase64Encoded)
 	})
-	t.Run("verify FileB64Res embeds the bytes correctly in the response object as a byte64 encoded string", func(t *testing.T) {
+	t.Run("verify FileB64 embeds the bytes correctly in the response object as a byte64 encoded string", func(t *testing.T) {
 		b64CSVContent := res.Body
 
 		decodedCSVContent, decodeErr := base64.StdEncoding.DecodeString(b64CSVContent)
 		require.Nil(t, decodeErr)
 		require.Equal(t, csvContent, string(decodedCSVContent))
 	})
-	t.Run("verify FileRes preserves the original header values", func(t *testing.T) {
+	t.Run("verify File preserves the original header values", func(t *testing.T) {
 		require.Equal(t, "value", res.Headers["key"])
 	})
-	t.Run("verify FileB64Res returns CORS headers", func(t *testing.T) {
+	t.Run("verify FileB64 returns CORS headers", func(t *testing.T) {
 		require.Equal(t, res.Headers[lcom.CORSHeadersHeaderKey], "*")
 		require.Equal(t, res.Headers[lcom.CORSMethodsHeaderKey], "*")
 		require.Equal(t, res.Headers[lcom.CORSOriginHeaderKey], "*")
@@ -189,13 +189,13 @@ func TestStatusAndErrorRes(t *testing.T) {
 	defer unsetCors(t)
 
 	newErr := errors.New("hello there")
-	res, err := StatusAndErrorRes(http.StatusTeapot, newErr)
+	res, err := StatusAndError(http.StatusTeapot, newErr)
 	require.Nil(t, err)
 
-	t.Run("verify StatusAndErrorRes returns the correct status code", func(t *testing.T) {
+	t.Run("verify StatusAndError returns the correct status code", func(t *testing.T) {
 		require.Equal(t, http.StatusTeapot, res.StatusCode)
 	})
-	t.Run("verify StatusAndErrorRes returns CORS headers", func(t *testing.T) {
+	t.Run("verify StatusAndError returns CORS headers", func(t *testing.T) {
 		require.Equal(t, res.Headers[lcom.CORSHeadersHeaderKey], "*")
 		require.Equal(t, res.Headers[lcom.CORSMethodsHeaderKey], "*")
 		require.Equal(t, res.Headers[lcom.CORSOriginHeaderKey], "*")
@@ -208,18 +208,18 @@ func TestSuccessRes(t *testing.T) {
 	defer unsetCors(t)
 
 	cs := customStruct{StructKey: "hello there"}
-	res, err := SuccessRes(cs)
+	res, err := Success(cs)
 	require.Nil(t, err)
-	t.Run("verify SuccessRes returns the correct status code", func(t *testing.T) {
+	t.Run("verify Success returns the correct status code", func(t *testing.T) {
 		require.Equal(t, http.StatusOK, res.StatusCode)
 	})
-	t.Run("verify SuccessRes returns the struct in the response body", func(t *testing.T) {
+	t.Run("verify Success returns the struct in the response body", func(t *testing.T) {
 		var returnedStruct customStruct
-		unmarshalErr := UnmarshalRes(res, &returnedStruct)
+		unmarshalErr := Unmarshal(res, &returnedStruct)
 		require.Nil(t, unmarshalErr)
 		require.Equal(t, cs, returnedStruct)
 	})
-	t.Run("verify SuccessRes returns CORS headers", func(t *testing.T) {
+	t.Run("verify Success returns CORS headers", func(t *testing.T) {
 		require.Equal(t, res.Headers[lcom.CORSHeadersHeaderKey], "*")
 		require.Equal(t, res.Headers[lcom.CORSMethodsHeaderKey], "*")
 		require.Equal(t, res.Headers[lcom.CORSOriginHeaderKey], "*")

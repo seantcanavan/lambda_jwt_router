@@ -92,7 +92,7 @@ func TestDecodeAndInjectExpandedClaims(t *testing.T) {
 		require.Equal(t, res.StatusCode, http.StatusBadRequest)
 
 		var responseBody lres.HTTPError
-		err = lres.UnmarshalRes(res, &responseBody)
+		err = lres.Unmarshal(res, &responseBody)
 		require.Nil(t, err)
 
 		require.Equal(t, responseBody.Status, res.StatusCode)
@@ -121,7 +121,7 @@ func TestDecodeAndInjectExpandedClaims(t *testing.T) {
 		require.Equal(t, res.StatusCode, http.StatusOK)
 
 		var returnedClaims ljwt.ExpandedClaims
-		err = lres.UnmarshalRes(res, &returnedClaims)
+		err = lres.Unmarshal(res, &returnedClaims)
 		require.Nil(t, err)
 		// this verifies that the context gets set in the middleware inject function since the
 		// dummy handler passed to it as the 'next' call injects the values from its passed
@@ -151,7 +151,7 @@ func GenerateSuccessHandlerAndMapExpandedContext() lcom.Handler {
 	return func(ctx context.Context, req events.APIGatewayProxyRequest) (
 		events.APIGatewayProxyResponse,
 		error) {
-		return lres.CustomRes(http.StatusOK, nil, ljwt.ExpandedClaims{
+		return lres.Custom(http.StatusOK, nil, ljwt.ExpandedClaims{
 			Audience:  ctx.Value(lcom.JWTClaimAudienceKey).(string),
 			Email:     ctx.Value(lcom.JWTClaimEmailKey).(string),
 			ExpiresAt: ctx.Value(lcom.JWTClaimExpiresAtKey).(int64),
@@ -177,7 +177,7 @@ func TestDecodeAndInjectStandardClaims(t *testing.T) {
 		require.Equal(t, res.StatusCode, http.StatusBadRequest)
 
 		var responseBody lres.HTTPError
-		err = lres.UnmarshalRes(res, &responseBody)
+		err = lres.Unmarshal(res, &responseBody)
 		require.Nil(t, err)
 
 		require.Equal(t, responseBody.Status, res.StatusCode)
@@ -206,7 +206,7 @@ func TestDecodeAndInjectStandardClaims(t *testing.T) {
 		require.Equal(t, res.StatusCode, http.StatusOK)
 
 		var returnedClaims jwt.StandardClaims
-		err = lres.UnmarshalRes(res, &returnedClaims)
+		err = lres.Unmarshal(res, &returnedClaims)
 		require.Nil(t, err)
 		// this verifies that the context gets set in the middleware inject function since the
 		// dummy handler passed to it as the 'next' call injects the values from its passed

@@ -117,7 +117,7 @@ func AllowOptionsMW() lcom.Handler {
 		res events.APIGatewayProxyResponse,
 		err error,
 	) {
-		return lres.EmptyRes()
+		return lres.Empty()
 	}
 }
 
@@ -133,13 +133,13 @@ func DecodeStandardMW(next lcom.Handler) lcom.Handler {
 	) {
 		mapClaims, httpStatus, err := ljwt.ExtractJWT(req.Headers)
 		if err != nil {
-			return lres.StatusAndErrorRes(httpStatus, err)
+			return lres.StatusAndError(httpStatus, err)
 		}
 
 		var standardClaims jwt.StandardClaims
 		err = ljwt.ExtractStandard(mapClaims, &standardClaims)
 		if err != nil {
-			return lres.StatusAndErrorRes(http.StatusInternalServerError, err)
+			return lres.StatusAndError(http.StatusInternalServerError, err)
 		}
 
 		ctx = context.WithValue(ctx, lcom.JWTClaimAudienceKey, standardClaims.Audience)
@@ -166,13 +166,13 @@ func DecodeExpandedMW(next lcom.Handler) lcom.Handler {
 	) {
 		mapClaims, httpStatus, err := ljwt.ExtractJWT(req.Headers)
 		if err != nil {
-			return lres.StatusAndErrorRes(httpStatus, err)
+			return lres.StatusAndError(httpStatus, err)
 		}
 
 		var extendedClaims ljwt.ExpandedClaims
 		err = ljwt.ExtractCustom(mapClaims, &extendedClaims)
 		if err != nil {
-			return lres.StatusAndErrorRes(http.StatusInternalServerError, err)
+			return lres.StatusAndError(http.StatusInternalServerError, err)
 		}
 
 		ctx = context.WithValue(ctx, lcom.JWTClaimAudienceKey, extendedClaims.Audience)

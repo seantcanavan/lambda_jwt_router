@@ -74,7 +74,7 @@ func TestRouter(t *testing.T) {
 				Path:       "/api",
 			}
 			_, err := lmd.matchReq(&req)
-			require.Equal(t, nil, err, "ErrorRes must be nil")
+			require.Equal(t, nil, err, "Error must be nil")
 		})
 
 		t.Run("POST /api/", func(t *testing.T) {
@@ -84,7 +84,7 @@ func TestRouter(t *testing.T) {
 				Path:       "/api/",
 			}
 			_, err := lmd.matchReq(&req)
-			require.Equal(t, nil, err, "ErrorRes must be nil")
+			require.Equal(t, nil, err, "Error must be nil")
 		})
 
 		t.Run("DELETE /api", func(t *testing.T) {
@@ -93,11 +93,11 @@ func TestRouter(t *testing.T) {
 				Path:       "/api",
 			}
 			_, err := lmd.matchReq(&req)
-			require.NotEqual(t, nil, err, "ErrorRes must not be nil")
+			require.NotEqual(t, nil, err, "Error must not be nil")
 			var httpErr lres.HTTPError
 			ok := errors.As(err, &httpErr)
-			require.True(t, ok, "ErrorRes must be an HTTP error")
-			require.Equal(t, http.StatusMethodNotAllowed, httpErr.Status, "ErrorRes code must be 405")
+			require.True(t, ok, "Error must be an HTTP error")
+			require.Equal(t, http.StatusMethodNotAllowed, httpErr.Status, "Error code must be 405")
 		})
 
 		t.Run("GET /api/fake-id", func(t *testing.T) {
@@ -106,7 +106,7 @@ func TestRouter(t *testing.T) {
 				Path:       "/api/fake-id",
 			}
 			_, err := lmd.matchReq(&req)
-			require.Equal(t, nil, err, "ErrorRes must be nil")
+			require.Equal(t, nil, err, "Error must be nil")
 			require.Equal(t, "fake-id", req.PathParameters["id"], "ID must be correct")
 		})
 
@@ -116,11 +116,11 @@ func TestRouter(t *testing.T) {
 				Path:       "/api/fake-id/bla",
 			}
 			_, err := lmd.matchReq(&req)
-			require.NotEqual(t, nil, err, "ErrorRes must not be nil")
+			require.NotEqual(t, nil, err, "Error must not be nil")
 			var httpErr lres.HTTPError
 			ok := errors.As(err, &httpErr)
-			require.True(t, ok, "ErrorRes must be an HTTP error")
-			require.Equal(t, http.StatusNotFound, httpErr.Status, "ErrorRes code must be 404")
+			require.True(t, ok, "Error must be an HTTP error")
+			require.Equal(t, http.StatusNotFound, httpErr.Status, "Error code must be 404")
 		})
 
 		t.Run("GET /api/fake-id/stuff/faked-fake", func(t *testing.T) {
@@ -129,7 +129,7 @@ func TestRouter(t *testing.T) {
 				Path:       "/api/fake-id/stuff/faked-fake",
 			}
 			_, err := lmd.matchReq(&req)
-			require.Equal(t, nil, err, "ErrorRes must be nil")
+			require.Equal(t, nil, err, "Error must be nil")
 			require.Equal(t, "fake-id", req.PathParameters["id"], "'id' must be correct")
 			require.Equal(t, "faked-fake", req.PathParameters["fake"], "'fake' must be correct")
 		})
@@ -142,7 +142,7 @@ func TestRouter(t *testing.T) {
 				Path:       "/api",
 			}
 			res, err := lmd.Handler(context.Background(), req)
-			require.Equal(t, nil, err, "ErrorRes must not be nil")
+			require.Equal(t, nil, err, "Error must not be nil")
 			require.Equal(t, http.StatusUnauthorized, res.StatusCode, "Status code must be 401")
 			require.True(t, len(testLog) > 0, "Log must have items")
 			require.Equal(
@@ -162,7 +162,7 @@ func TestRouter(t *testing.T) {
 				},
 			}
 			res, err := lmd.Handler(context.Background(), req)
-			require.Equal(t, nil, err, "ErrorRes must not be nil")
+			require.Equal(t, nil, err, "Error must not be nil")
 			require.Equal(t, http.StatusBadRequest, res.StatusCode, "Status code must be 400")
 		})
 
@@ -172,7 +172,7 @@ func TestRouter(t *testing.T) {
 				Path:       "/api",
 			}
 			res, err := lmd.Handler(context.Background(), req)
-			require.Equal(t, nil, err, "ErrorRes must not be nil")
+			require.Equal(t, nil, err, "Error must not be nil")
 			require.Equal(t, http.StatusOK, res.StatusCode, "Status code must be 200")
 			require.True(t, len(testLog) > 0, "Log must have items")
 			require.Equal(
@@ -236,7 +236,7 @@ func listSomethings(_ context.Context, req events.APIGatewayProxyRequest) (
 	var input util.MockListReq
 	err = lreq.UnmarshalReq(req, false, &input)
 	if err != nil {
-		return lres.ErrorRes(err)
+		return lres.Error(err)
 	}
 
 	now := time.Now()
@@ -248,7 +248,7 @@ func listSomethings(_ context.Context, req events.APIGatewayProxyRequest) (
 		{ID: "three", Name: "Third Item", Date: then},
 	}
 
-	return lres.CustomRes(http.StatusOK, nil, output)
+	return lres.Custom(http.StatusOK, nil, output)
 }
 
 func postSomething(_ context.Context, req events.APIGatewayProxyRequest) (
@@ -258,7 +258,7 @@ func postSomething(_ context.Context, req events.APIGatewayProxyRequest) (
 	var input util.MockPostReq
 	err = lreq.UnmarshalReq(req, true, &input)
 	if err != nil {
-		return lres.ErrorRes(err)
+		return lres.Error(err)
 	}
 
 	output := map[string]string{
@@ -266,7 +266,7 @@ func postSomething(_ context.Context, req events.APIGatewayProxyRequest) (
 		"url": "https://service.com/api/bla",
 	}
 
-	return lres.CustomRes(http.StatusAccepted, map[string]string{
+	return lres.Custom(http.StatusAccepted, map[string]string{
 		"Location": output["url"],
 	}, output)
 }
@@ -279,7 +279,7 @@ func getSomething(_ context.Context, req events.APIGatewayProxyRequest) (
 	var input util.MockGetReq
 	err = lreq.UnmarshalReq(req, false, &input)
 	if err != nil {
-		return lres.ErrorRes(err)
+		return lres.Error(err)
 	}
 
 	output := util.MockItem{
@@ -288,7 +288,7 @@ func getSomething(_ context.Context, req events.APIGatewayProxyRequest) (
 		Date: time.Now(),
 	}
 
-	return lres.CustomRes(http.StatusOK, nil, output)
+	return lres.Custom(http.StatusOK, nil, output)
 }
 
 func listStuff(_ context.Context, req events.APIGatewayProxyRequest) (
@@ -299,7 +299,7 @@ func listStuff(_ context.Context, req events.APIGatewayProxyRequest) (
 	var input util.MockListReq
 	err = lreq.UnmarshalReq(req, false, &input)
 	if err != nil {
-		return lres.ErrorRes(err)
+		return lres.Error(err)
 	}
 
 	output := make([]util.MockItem, len(input.Terms))
@@ -310,7 +310,7 @@ func listStuff(_ context.Context, req events.APIGatewayProxyRequest) (
 		}
 	}
 
-	return lres.CustomRes(http.StatusOK, nil, output)
+	return lres.Custom(http.StatusOK, nil, output)
 }
 
 func logger(next lcom.Handler) lcom.Handler {
@@ -362,7 +362,7 @@ func auth(next lcom.Handler) lcom.Handler {
 			}
 		}
 
-		return lres.CustomRes(
+		return lres.Custom(
 			http.StatusUnauthorized,
 			map[string]string{"WWW-Authenticate": "Bearer"},
 			lres.HTTPError{Status: http.StatusUnauthorized, Message: "Unauthorized"},

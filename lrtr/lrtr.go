@@ -44,7 +44,7 @@
 //
 // * Provides the ability to automatically "marshal" responses of any type to an
 // API Gateway response (only JSON responses are currently generated). See the
-// CustomRes function for more information.
+// Custom function for more information.
 //
 //   - Implements net/http.Handler for local development and general usage outside
 //     an AWS Lambda environment.
@@ -194,7 +194,7 @@ func (l *Router) Handler(
 ) (events.APIGatewayProxyResponse, error) {
 	matchedResource, err := l.matchReq(&req)
 	if err != nil {
-		return lres.ErrorRes(err)
+		return lres.Error(err)
 	}
 
 	handler := matchedResource.handler
