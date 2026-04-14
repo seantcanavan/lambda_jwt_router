@@ -1,6 +1,6 @@
 module github.com/seantcanavan/lambda_jwt_router
 
-go 1.21
+go 1.26.1
 
 require (
 	cloud.google.com/go v0.111.0
